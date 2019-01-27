@@ -230,6 +230,194 @@ ORDER BY f.title
 
 ;
 
+#7b. Use subqueries to display all actors who appear in the film Alone Trip.
+
+SELECT TEMP.actor_id, act.first_name, act.last_name
+FROM
+
+(
+SELECT a.actor_id, a.film_id, f.title
+FROM film_actor AS a
+JOIN
+film as f
+ON f.film_id = a.film_id
+WHERE f.title = 'Alone Trip'
+) TEMP
+JOIN actor AS act
+ON TEMP.actor_id = act.actor_id
+;
+
+#7c. You want to run an email marketing campaign in Canada, for which you will need the names 
+#and email addresses of all Canadian customers. Use joins to retrieve this information.
+SELECT *  FROM customer ;  #address_id
+SELECT * FROM address LIMIT 10;   #address_id, city_id
+SELECT * FROM city ;  #city_id, country_id
+SELECT * FROM country LIMIT 10;  #country_id (to country)
+
+SELECT cust.first_name, cust.last_name, cust.email, country.country, country.country_id, c.city_id
+FROM customer AS cust
+JOIN address AS a ON a.address_id = cust.address_id
+JOIN city as c    ON c.city_id    = a.city_id
+JOIN country as country  ON country.country_id  = c.country_id
+
+WHERE country.country = 'Canada'
+;
+
+SELECT s.store_id, country.country, country.country_id, c.city_id
+FROM store AS s
+JOIN address AS a ON a.address_id = s.address_id
+JOIN city as c    ON c.city_id    = a.city_id
+JOIN country as country  ON country.country_id  = c.country_id
+
+WHERE country.country = 'Canada'
+;
+
+SELECT * FROM customer WHERE store_id = 1;
+
+SELECT c.city_id, c.city, country.country 
+FROM city as c
+JOIN country AS country ON c.country_id = country.country_id;
+
+SELECT cust.first_name, cust.last_name, cust.email, a.city_id
+FROM customer AS cust
+JOIN address AS a ON a.address_id = cust.address_id
 
 
+WHERE a.city_id IN (179,196,300,313,383,430,565)
+;
 
+#7d. Sales have been lagging among young families, and you wish to target all family movies for a 
+#promotion. Identify all movies categorized as family films.
+SELECT rental_id, count(customer_id) 
+FROM payment 
+GROUP BY rental_id;  # category_id (has name)  Family = category_id 8
+SELECT film_id FROM film_category WHERE category_id = 8;  #category_id & film_id
+SELECT * FROM film LIMIT 10;  #title, film_id
+
+SELECT f.title, f.film_id, c.name
+FROM
+film AS f
+JOIN film_category AS fc ON fc.film_id = f.film_id
+JOIN category      AS c ON c.category_id = fc.category_id
+WHERE c.name = 'Family'
+;
+
+#7e. Display the most frequently rented movies in descending order.
+SELECT * from payment ; #rental_id
+SELECT * FROM rental;  # customer_id (count these), rental_date, inventory_id
+SELECT * FROM inventory LIMIT 10; #inventory_id, film_id 
+SELECT * FROM film LIMIT 10;  #title, film_id
+
+SELECT  inventory_id, month(rental_date), COUNT(inventory_id) AS num_rents
+FROM rental
+WHERE month(rental_date) = 8
+GROUP BY inventory_id, month(rental_date)
+ORDER BY num_rents DESC
+;
+
+#7f. Write a query to display how much business, in dollars, each store brought in.
+SELECT * FROM store ;  #store_id
+SELECT * FROM customer;  #customer_id, store_id
+SELECT * FROM payment; #customer_id, amount
+
+SELECT s.store_id, concat('$', format(sum(p.amount),2)) as tot_store_sales
+FROM payment AS p
+JOIN customer AS c ON c.customer_id = p.customer_id
+JOIN store AS s ON s.store_id = c.store_id
+GROUP BY s.store_id
+;
+
+#QAing the resulting amounts (this should equal the sum of each store sales)
+SELECT sum(amount) from payment;
+
+# Need to know in USD? So, need to know Store's Country location to convert the money
+# Payment has customer_id, customer_id, address_id is in customer
+# address_id is in address, city_id is in City, and country is in country
+
+
+#7g. Write a query to display for each store its store ID, city, and country.
+SELECT  cust.store_id ,c.city, country.country #, country.country,
+FROM payment as p
+INNER JOIN customer as cust ON p.customer_id = cust.customer_id
+INNER JOIN address as a ON a.address_id = cust.address_id
+INNER JOIN city    as c ON c.city_id = a.city_id
+INNER JOIN country as country ON country.country_id = c.country_id
+;
+
+#7h. List the top five genres in gross revenue in descending order. 
+#(Hint: you may need to use the following tables: 
+#category, film_category, inventory, payment, and rental.)
+USE sakila;
+SELECT * from category LIMIT 10;  #genres are found here - NAME, category_id
+SELECT * from film_category LIMIT 10;  # film_id to category_id is found here
+SELECT * from inventory LIMIT 10;  #film_id to inventory_id and store_id is here
+SELECT * from rental LIMIT 10; #rental_id , rental_date, and inventory_id is here
+SELECT * from payment ; #payment and rental_id is found here
+
+#### IGNORE - Working thru the logic
+SELECT  c.name, p.amount
+FROM category AS c
+JOIN film_category AS fc ON fc.category_id = c.category_id
+JOIN inventory AS i ON i.film_id = fc.film_id
+JOIN rental AS r ON r.inventory_id = i.inventory_id
+JOIN payment AS p ON p.rental_id = r.rental_id
+;
+
+####
+
+# SQL FOR QUESTION
+
+SELECT TEMP_AMTS.name, SUM(TEMP_AMTS.amount) AS sum_amts
+FROM
+(
+SELECT FILMS_TEMP.name, r.rental_id, p.amount
+FROM
+(
+SELECT fc.film_id, i.inventory_id, c.name #, r.rental_id #, p.amount
+FROM film_category AS fc
+JOIN category AS c ON fc.category_id = c.category_id
+JOIN inventory AS i on fc.film_id = i.film_id
+GROUP BY c.name
+) FILMS_TEMP
+JOIN rental AS r ON r.inventory_id = FILMS_TEMP.inventory_id
+JOIN payment AS p ON p.rental_id = r.rental_id
+) TEMP_AMTS
+GROUP BY TEMP_AMTS.name
+ORDER BY sum_amts DESC
+LIMIT 5
+;
+
+#8a. In your new role as an executive, you would like to have an easy way of 
+#viewing the Top five genres by gross revenue. 
+#Use the solution from the problem above to create a view. 
+
+CREATE VIEW `Top_5_Gross_Rev_Genres` AS 
+SELECT TEMP_AMTS.name, SUM(TEMP_AMTS.amount) AS sum_amts
+FROM
+(
+SELECT FILMS_TEMP.name, r.rental_id, p.amount
+FROM
+(
+SELECT fc.film_id, i.inventory_id, c.name #, r.rental_id #, p.amount
+FROM film_category AS fc
+JOIN category AS c ON fc.category_id = c.category_id
+JOIN inventory AS i on fc.film_id = i.film_id
+GROUP BY c.name
+) FILMS_TEMP
+JOIN rental AS r ON r.inventory_id = FILMS_TEMP.inventory_id
+JOIN payment AS p ON p.rental_id = r.rental_id
+) TEMP_AMTS
+GROUP BY TEMP_AMTS.name
+ORDER BY sum_amts DESC
+LIMIT 5
+;
+
+#8b. How would you display the view that you created in 8a?
+SELECT * FROM `Top_5_Gross_Rev_Genres`;
+
+#8c. You find that you no longer need the view top_five_genres. 
+#Write a query to delete it.
+
+DROP VIEW `Top_5_Gross_Rev_Genres`;
+
+ 
