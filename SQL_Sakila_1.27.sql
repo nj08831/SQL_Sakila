@@ -291,18 +291,26 @@ JOIN category      AS c ON c.category_id = fc.category_id
 WHERE c.name = 'Family'
 ;
 
+
 #7e. Display the most frequently rented movies in descending order.
-SELECT * from payment ; #rental_id
+SELECT * FROM payment; #rental_id
 SELECT * FROM rental;  # customer_id (count these), rental_date, inventory_id
 SELECT * FROM inventory LIMIT 10; #inventory_id, film_id 
 SELECT * FROM film LIMIT 10;  #title, film_id
 
-SELECT  inventory_id, month(rental_date), COUNT(inventory_id) AS num_rents
-FROM rental
-WHERE month(rental_date) = 8
-GROUP BY inventory_id, month(rental_date)
-ORDER BY num_rents DESC
+
+SELECT  f.title , f.film_id, month(r.rental_date) as month_rented,  COUNT(f.film_id) AS num_rentals
+FROM payment AS p
+JOIN rental AS r ON p.rental_id = r.rental_id
+JOIN inventory AS i ON i.inventory_id = r.inventory_id
+JOIN film AS f ON f.film_id = i.film_id
+WHERE month(r.rental_date)  = 8
+GROUP BY  month_rented, f.film_id
+ORDER BY num_rentals DESC
+
+#ORDER BY num_rents DES
 ;
+
 
 #7f. Write a query to display how much business, in dollars, each store brought in.
 SELECT * FROM store ;  #store_id
